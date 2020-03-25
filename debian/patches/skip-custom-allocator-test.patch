@@ -1,0 +1,19 @@
+Description: skip custom allocator test if CBOR_CUSTOM_ALLOC is undefined
+ The test file test/memory_allocation_test.c checks if CBOR_CUSTOM_ALLOC is
+ defined and basically noops, but the test file is still compiled and that
+ build fails. It's best to skip it entirely in that case.
+Author: Andreas Hasenack <andreas@canonical.com>
+Bug: https://github.com/PJK/libcbor/issues/128
+Last-Update: 2020-03-20
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/test/CMakeLists.txt
++++ b/test/CMakeLists.txt
+@@ -1,4 +1,7 @@
+ file(GLOB TESTS "*_test.c")
++if(NOT CBOR_CUSTOM_ALLOC)
++    list(REMOVE_ITEM TESTS ${CMAKE_CURRENT_SOURCE_DIR}/memory_allocation_test.c)
++endif(NOT CBOR_CUSTOM_ALLOC)
+ 
+ find_package(CMocka REQUIRED)
+ 
