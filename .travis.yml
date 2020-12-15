@@ -1,0 +1,57 @@
+language: c
+
+sudo: true
+
+matrix:
+  include:
+    - arch: amd64
+      os: linux
+      dist: bionic
+      sudo: required
+      compiler: clang
+      env: TRAVIS_ARCH="amd64"
+    - arch: amd64
+      os: linux
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      env: TRAVIS_ARCH="amd64"
+    - arch: arm64
+      os: linux
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      env: TRAVIS_ARCH="arm64"
+    # TODO: Add OSX support (might require some brew tweaking)
+
+before_install:
+  - pushd ${HOME}
+  - git clone git://git.cryptomilk.org/projects/cmocka.git
+  - cd cmocka && mkdir build && cd build
+  - cmake .. && make -j2 && sudo make install
+  - cd .. && popd
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo apt-get update -qq; sudo apt-get install -y clang-format-8 cppcheck; fi
+
+script:
+  - cppcheck . --error-exitcode=1 --force
+  # Fail if re-formatting creates diffs (implying bad formatting)
+  - ./clang-format.sh --verbose
+  - git diff-index --quiet HEAD
+  - mkdir build && cd build
+  - cmake -DWITH_TESTS=ON
+          -DCBOR_CUSTOM_ALLOC=ON
+          -DCMAKE_BUILD_TYPE=Debug
+          -DSANITIZE=OFF
+          ..
+  - make VERBOSE=1
+  - ctest -VV
+  - ctest -T memcheck | tee memcheck.out
+  - >
+    if grep -q 'Memory Leak\|IPW\|Uninitialized Memory Conditional\|Uninitialized Memory Read' memcheck.out; then
+      exit 1
+    fi;
+
+# TODO: Set up https://codecov.io/
+
+notifications:
+  email: false
